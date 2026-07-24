@@ -2,59 +2,116 @@ export default class EventBus {
 
     constructor() {
 
-        this.events = {};
+        this.events = new Map();
 
     }
 
     on(eventName, callback) {
 
-        if (!this.events[eventName]) {
+        if (typeof callback !== "function") {
 
-            this.events[eventName] = [];
+            throw new Error(
+                `Event '${eventName}' callback must be a function.`
+            );
 
         }
 
-        this.events[eventName].push(callback);
+        if (!this.events.has(eventName)) {
+
+            this.events.set(eventName, new Set());
+
+        }
+
+        this.events.get(eventName).add(callback);
+
+        return () => this.off(eventName, callback);
+
+    }
+
+    once(eventName, callback) {
+
+        const wrapper = (data) => {
+
+            this.off(eventName, wrapper);
+
+            callback(data);
+
+        };
+
+        this.on(eventName, wrapper);
 
     }
 
     off(eventName, callback) {
 
-        if (!this.events[eventName]) return;
+        if (!this.events.has(eventName)) return;
 
-        this.events[eventName] = this.events[eventName].filter(
+        const listeners = this.events.get(eventName);
 
-            listener => listener !== callback
+        listeners.delete(callback);
 
-        );
+        if (listeners.size === 0) {
 
-    }
-
-    emit(eventName, data = null) {
-
-        if (!this.events[eventName]) return;
-
-        this.events[eventName].forEach(listener => {
-
-            listener(data);
-
-        });
-
-    }
-
-    clear(eventName) {
-
-        if (this.events[eventName]) {
-
-            delete this.events[eventName];
+            this.events.delete(eventName);
 
         }
 
     }
 
+    emit(eventName, data = null) {
+
+        if (!this.events.has(eventName)) return;
+
+        const listeners = [...this.events.get(eventName)];
+
+        for (const listener of listeners) {
+
+            try {
+
+                listener(data);
+
+            } catch (error) {
+
+                console.error(
+                    `Error while handling '${eventName}'`,
+                    error
+                );
+
+            }
+
+        }
+
+    }
+
+    has(eventName) {
+
+        return this.events.has(eventName);
+
+    }
+
+    listenerCount(eventName) {
+
+        if (!this.events.has(eventName)) return 0;
+
+        return this.events.get(eventName).size;
+
+    }
+
+    clear(eventName) {
+
+        this.events.delete(eventName);
+
+    }
+
     clearAll() {
 
-        this.events = {};
+        this.events.clear();
+
+    }
+
+    dispose() {
+
+        this.clearAll();
 
     }
 

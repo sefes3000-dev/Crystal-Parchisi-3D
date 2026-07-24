@@ -1,6 +1,7 @@
 import * as THREE from "three";
 import CameraManager from "./CameraManager.js";
 import BoardManager from "../board/BoardManager.js";
+import MaterialManager from "./MaterialManager.js";
 
 export default class ThreeManager {
 
@@ -13,37 +14,30 @@ export default class ThreeManager {
         this.renderer = null;
 
         this.cameraManager = null;
-
         this.boardManager = null;
+
+        this.materials = new MaterialManager();
 
     }
 
     async init() {
 
         this.createScene();
-
         this.createCamera();
-
         this.createRenderer();
-
         this.createLights();
 
         this.cameraManager = new CameraManager(this.camera);
-
         this.cameraManager.init();
 
         this.boardManager = new BoardManager(this.scene);
-
         await this.boardManager.init();
 
         this.resize();
 
         window.addEventListener(
-
             "resize",
-
             () => this.resize()
-
         );
 
     }
@@ -59,15 +53,10 @@ export default class ThreeManager {
     createCamera() {
 
         this.camera = new THREE.PerspectiveCamera(
-
             45,
-
             window.innerWidth / window.innerHeight,
-
             0.1,
-
             1000
-
         );
 
     }
@@ -75,25 +64,15 @@ export default class ThreeManager {
     createRenderer() {
 
         this.renderer = new THREE.WebGLRenderer({
-
             canvas: this.canvas,
-
             antialias: true
-
         });
 
-        this.renderer.setPixelRatio(
-
-            window.devicePixelRatio
-
-        );
+        this.renderer.setPixelRatio(window.devicePixelRatio);
 
         this.renderer.setSize(
-
             window.innerWidth,
-
             window.innerHeight
-
         );
 
         this.renderer.shadowMap.enabled = true;
@@ -102,56 +81,30 @@ export default class ThreeManager {
 
     createLights() {
 
-        const ambient = new THREE.AmbientLight(
-
-            0xffffff,
-
-            1
-
-        );
+        const ambient = new THREE.AmbientLight(0xffffff, 1);
 
         this.scene.add(ambient);
 
-        const light = new THREE.DirectionalLight(
+        const sun = new THREE.DirectionalLight(0xffffff, 2);
 
-            0xffffff,
+        sun.position.set(10, 20, 10);
 
-            2
+        sun.castShadow = true;
 
-        );
-
-        light.position.set(
-
-            10,
-
-            20,
-
-            10
-
-        );
-
-        light.castShadow = true;
-
-        this.scene.add(light);
+        this.scene.add(sun);
 
     }
 
     resize() {
 
         this.camera.aspect =
-
-            window.innerWidth /
-
-            window.innerHeight;
+            window.innerWidth / window.innerHeight;
 
         this.camera.updateProjectionMatrix();
 
         this.renderer.setSize(
-
             window.innerWidth,
-
             window.innerHeight
-
         );
 
     }
@@ -161,11 +114,8 @@ export default class ThreeManager {
         this.cameraManager.update();
 
         this.renderer.render(
-
             this.scene,
-
             this.camera
-
         );
 
     }

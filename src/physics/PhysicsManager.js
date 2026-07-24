@@ -5,8 +5,18 @@ export default class PhysicsManager {
     constructor() {
 
         this.world = null;
+
         this.fixedTimeStep = 1 / 60;
-        this.maxSubSteps = 3;
+
+        this.maxSubSteps = 5;
+
+        this.bodies = [];
+
+        this.materials = new Map();
+
+        this.contactMaterials = [];
+
+        this.enabled = true;
 
     }
 
@@ -20,25 +30,59 @@ export default class PhysicsManager {
 
         this.world.allowSleep = true;
 
+        this.world.broadphase = new CANNON.SAPBroadphase(this.world);
+
+        this.createDefaultMaterials();
+
         this.createGround();
 
         console.log("Physics Engine Ready");
 
     }
 
+    createDefaultMaterials() {
+
+        const defaultMaterial = new CANNON.Material("default");
+
+        this.materials.set("default", defaultMaterial);
+
+        const contact = new CANNON.ContactMaterial(
+
+            defaultMaterial,
+
+            defaultMaterial,
+
+            {
+
+                friction: 0.4,
+
+                restitution: 0.25
+
+            }
+
+        );
+
+        this.world.addContactMaterial(contact);
+
+        this.contactMaterials.push(contact);
+
+    }
+
     createGround() {
 
-        const groundShape = new CANNON.Plane();
+        const shape = new CANNON.Plane();
 
-        const groundBody = new CANNON.Body({
+        const body = new CANNON.Body({
 
             mass: 0,
 
-            shape: groundShape
+            material: this.materials.get("default"),
+
+            shape
 
         });
 
-        groundBody.quaternion.setFromEuler(
+        body.quaternion.setFromEuler(
 
             -Math.PI / 2,
 
@@ -48,13 +92,31 @@ export default class PhysicsManager {
 
         );
 
-        this.world.addBody(groundBody);
+        this.world.addBody(body);
+
+        this.bodies.push(body);
+
+    }
+
+    addBody(body) {
+
+        this.world.addBody(body);
+
+        this.bodies.push(body);
+
+    }
+
+    removeBody(body) {
+
+        this.world.removeBody(body);
+
+        this.bodies = this.bodies.filter(b => b !== body);
 
     }
 
     update(delta) {
 
-        if (!this.world) return;
+        if (!this.world || !this.enabled) return;
 
         this.world.step(
 
@@ -65,6 +127,48 @@ export default class PhysicsManager {
             this.maxSubSteps
 
         );
+
+    }
+
+    setGravity(x, y, z) {
+
+        this.world.gravity.set(x, y, z);
+
+    }
+
+    pause() {
+
+        this.enabled = false;
+
+    }
+
+    resume() {
+
+        this.enabled = true;
+
+    }
+
+    clear() {
+
+        for (const body of this.bodies) {
+
+            this.world.removeBody(body);
+
+        }
+
+        this.bodies = [];
+
+    }
+
+    dispose() {
+
+        this.clear();
+
+        this.materials.clear();
+
+        this.contactMaterials = [];
+
+        this.world = null;
 
     }
 

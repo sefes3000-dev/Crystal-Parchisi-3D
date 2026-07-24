@@ -1,97 +1,142 @@
 import * as THREE from "three";
 import ModelLoader from "../graphics/ModelLoader.js";
+import DicePhysics from "./DicePhysics.js";
+import DiceAnimator from "./DiceAnimator.js";
+import DiceValueReader from "./DiceValueReader.js";
+import DiceConfig from "./DiceConfig.js";
 
 export default class DiceManager {
 
-    constructor(scene) {
+    constructor(scene, physics) {
 
         this.scene = scene;
+        this.physics = physics;
 
         this.loader = new ModelLoader();
 
-        this.dice = [];
+        this.physicsSystem = null;
+        this.animator = new DiceAnimator();
 
-        this.isRolling = false;
+        this.meshes = [];
+        this.bodies = [];
 
         this.values = [1, 1];
+
+        this.isRolling = false;
 
     }
 
     async init() {
 
-        await this.createDice(0);
+        this.physicsSystem = new DicePhysics(this.physics.world);
 
-        await this.createDice(1);
+        for (let i = 0; i < DiceConfig.COUNT; i++) {
 
-        console.log("Dice System Ready");
+            await this.createDice(i);
+
+        }
+
+        console.log("Dice Manager Ready");
 
     }
 
     async createDice(index) {
 
-        let model;
+        let mesh;
 
         try {
 
-            model = await this.loader.load("/models/dice.glb");
+            mesh = await this.loader.load("/models/dice.glb");
 
         } catch {
 
-            model = new THREE.Mesh(
+            mesh = new THREE.Mesh(
 
-                new THREE.BoxGeometry(0.8,0.8,0.8),
+                new THREE.BoxGeometry(
+                    DiceConfig.SIZE,
+                    DiceConfig.SIZE,
+                    DiceConfig.SIZE
+                ),
 
                 new THREE.MeshStandardMaterial({
-
-                    color:0xffffff
-
+                    color: 0xffffff
                 })
 
             );
 
         }
 
-        model.position.set(
+        mesh.castShadow = true;
 
-            index * 1.2 - 0.6,
+        mesh.position.set(
 
-            2,
+            index * 1.5 - 0.75,
+
+            DiceConfig.START_HEIGHT,
 
             0
 
         );
 
-        model.castShadow = true;
+        this.scene.add(mesh);
 
-        this.scene.add(model);
+        const body = this.physicsSystem.createBody(mesh.position);
 
-        this.dice.push(model);
+        this.animator.add(mesh, body);
+
+        this.meshes.push(mesh);
+
+        this.bodies.push(body);
 
     }
 
     roll() {
 
-        if(this.isRolling) return;
+        if (this.isRolling) return;
 
         this.isRolling = true;
 
-        this.values[0] = Math.floor(Math.random()*6)+1;
+        this.bodies.forEach(body => {
 
-        this.values[1] = Math.floor(Math.random()*6)+1;
+            this.physicsSystem.throw(body);
 
-        console.log("Dice:",this.values);
-
-        // الفيزياء ستضاف لاحقًا
-
-        setTimeout(()=>{
-
-            this.isRolling=false;
-
-        },1200);
+        });
 
     }
 
-    getValues(){
+    update() {
+
+        this.animator.update();
+
+        if (!this.isRolling) return;
+
+        let sleeping = true;
+
+        this.bodies.forEach(body => {
+
+            if (body.velocity.length() > 0.1) {
+
+                sleeping = false;
+
+            }
+
+        });
+
+        if (sleeping) {
+
+            this.values = this.meshes.map(mesh =>
+                DiceValueReader.getValue(mesh)
+            );
+
+            console.log("Dice Result:", this.values);
+
+            this.isRolling = false;
+
+        }
+
+    }
+
+    getValues() {
 
         return this.values;
 

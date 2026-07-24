@@ -6,76 +6,79 @@ import DiceManager from "../dice/DiceManager.js";
 
 export default class ThreeManager {
 
-    constructor(canvas){
+    constructor(canvas, physics) {
 
-        this.canvas=canvas;
+        this.canvas = canvas;
 
-        this.scene=null;
-        this.camera=null;
-        this.renderer=null;
+        this.physics = physics;
 
-        this.cameraManager=null;
-        this.boardManager=null;
-        this.diceManager=null;
+        this.scene = null;
+        this.camera = null;
+        this.renderer = null;
 
-        this.materials=new MaterialManager();
+        this.cameraManager = null;
+        this.boardManager = null;
+        this.diceManager = null;
+
+        this.materials = new MaterialManager();
 
     }
 
-    async init(){
+    async init() {
 
         this.createScene();
-
         this.createCamera();
-
         this.createRenderer();
-
         this.createLights();
 
-        this.cameraManager=new CameraManager(this.camera);
+        this.cameraManager = new CameraManager(this.camera);
         this.cameraManager.init();
 
-        this.boardManager=new BoardManager(this.scene);
+        this.boardManager = new BoardManager(this.scene);
         await this.boardManager.init();
 
-        this.diceManager=new DiceManager(this.scene);
+        this.diceManager = new DiceManager(
+            this.scene,
+            this.physics
+        );
+
         await this.diceManager.init();
 
         this.resize();
 
         window.addEventListener(
             "resize",
-            ()=>this.resize()
+            () => this.resize()
         );
 
     }
 
-    createScene(){
+    createScene() {
 
-        this.scene=new THREE.Scene();
+        this.scene = new THREE.Scene();
 
-        this.scene.background=new THREE.Color(0x202020);
+        this.scene.background = new THREE.Color(0x202020);
 
     }
 
-    createCamera(){
+    createCamera() {
 
-        this.camera=new THREE.PerspectiveCamera(
+        this.camera = new THREE.PerspectiveCamera(
             45,
-            window.innerWidth/window.innerHeight,
+            window.innerWidth / window.innerHeight,
             0.1,
             1000
         );
 
     }
 
-    createRenderer(){
+    createRenderer() {
 
-        this.renderer=new THREE.WebGLRenderer({
+        this.renderer = new THREE.WebGLRenderer({
 
-            canvas:this.canvas,
+            canvas: this.canvas,
 
-            antialias:true
+            antialias: true
 
         });
 
@@ -86,30 +89,30 @@ export default class ThreeManager {
             window.innerHeight
         );
 
-        this.renderer.shadowMap.enabled=true;
+        this.renderer.shadowMap.enabled = true;
 
     }
 
-    createLights(){
+    createLights() {
 
-        const ambient=new THREE.AmbientLight(0xffffff,1);
+        const ambient = new THREE.AmbientLight(0xffffff, 1);
 
         this.scene.add(ambient);
 
-        const sun=new THREE.DirectionalLight(0xffffff,2);
+        const sun = new THREE.DirectionalLight(0xffffff, 2);
 
-        sun.position.set(10,20,10);
+        sun.position.set(10, 20, 10);
 
-        sun.castShadow=true;
+        sun.castShadow = true;
 
         this.scene.add(sun);
 
     }
 
-    resize(){
+    resize() {
 
-        this.camera.aspect=
-        window.innerWidth/window.innerHeight;
+        this.camera.aspect =
+            window.innerWidth / window.innerHeight;
 
         this.camera.updateProjectionMatrix();
 
@@ -120,9 +123,19 @@ export default class ThreeManager {
 
     }
 
-    render(){
+    update(delta) {
+
+        if (this.diceManager) {
+
+            this.diceManager.update(delta);
+
+        }
 
         this.cameraManager.update();
+
+    }
+
+    render() {
 
         this.renderer.render(
             this.scene,

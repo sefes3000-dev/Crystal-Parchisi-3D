@@ -3,13 +3,24 @@ import { GameState } from "./GameState.js";
 import Core from "../core/Core.js";
 import PhysicsManager from "../physics/PhysicsManager.js";
 
+import EngineLoop from "./EngineLoop.js";
+import Time from "./Time.js";
+
 export default class GameEngine {
 
     constructor(canvas) {
 
         this.canvas = canvas;
 
+        this.state = GameState.BOOT;
+
+        this.started = false;
+
+        this.destroyed = false;
+
         this.core = new Core();
+
+        this.time = new Time();
 
         this.physics = new PhysicsManager();
 
@@ -18,43 +29,83 @@ export default class GameEngine {
             this.physics
         );
 
-        this.state = GameState.BOOT;
+        this.loop = new EngineLoop(this);
 
-        this.started = false;
-
-        this.lastTime = performance.now();
+        this.onResize = this.onResize.bind(this);
 
     }
 
     async init() {
 
-        this.changeState(GameState.LOADING);
+        try {
 
-        await this.core.assets.load();
+            this.changeState(GameState.LOADING);
 
-        this.physics.init();
+            await this.core.assets.load();
 
-        await this.graphics.init();
+            this.physics.init();
 
-        this.changeState(GameState.MAIN_MENU);
+            await this.graphics.init();
 
-        this.started = true;
+            window.addEventListener(
+                "resize",
+                this.onResize
+            );
+
+            this.changeState(GameState.MAIN_MENU);
+
+            this.started = true;
+
+        } catch (error) {
+
+            console.error(
+                "GameEngine Init Error:",
+                error
+            );
+
+        }
 
     }
 
-    update() {
+    start() {
 
         if (!this.started) return;
 
-        const now = performance.now();
+        this.loop.start();
 
-        const delta = (now - this.lastTime) / 1000;
+    }
 
-        this.lastTime = now;
+    stop() {
 
-        this.physics.update(delta);
+        this.loop.stop();
 
-        this.graphics.update(delta);
+    }
+
+    pause() {
+
+        this.loop.pause();
+
+    }
+
+    resume() {
+
+        this.loop.resume();
+
+    }
+
+    update(delta) {
+
+        if (!this.started) return;
+
+        this.time.update(delta);
+
+        this.physics.update(
+            this.time.getDelta()
+        );
+
+        this.graphics.update(
+            this.time.getDelta()
+        );
 
     }
 
@@ -76,6 +127,60 @@ export default class GameEngine {
             "stateChanged",
             state
         );
+
+    }
+
+    onResize() {
+
+        if (
+            this.graphics &&
+            this.graphics.resize
+        ) {
+
+            this.graphics.resize();
+
+        }
+
+    }
+
+    dispose() {
+
+        if (this.destroyed) return;
+
+        this.destroyed = true;
+
+        this.loop.stop();
+
+        window.removeEventListener(
+            "resize",
+            this.onResize
+        );
+
+        if (
+            this.graphics &&
+            this.graphics.dispose
+        ) {
+
+            this.graphics.dispose();
+
+        }
+
+        if (
+            this.physics &&
+            this.physics.dispose
+        ) {
+
+            this.physics.dispose();
+
+        }
+
+        this.started = false;
+
+    }
+
+    getFPS() {
+
+        return this.time.getFPS();
 
     }
 

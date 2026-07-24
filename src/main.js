@@ -1,31 +1,29 @@
 import "./styles/main.css";
 
-import ThreeManager from "./graphics/ThreeManager";
+import GameEngine from "./engine/GameEngine.js";
 
-const app=document.getElementById("app");
+const app = document.getElementById("app");
 
-app.innerHTML=`
-
+app.innerHTML = `
 <div id="game-container">
-
-<canvas id="gameCanvas"></canvas>
-
+    <canvas id="gameCanvas"></canvas>
 </div>
-
 `;
 
-const canvas=document.getElementById("gameCanvas");
+const canvas = document.getElementById("gameCanvas");
 
-const engine=new ThreeManager(canvas);
+const game = new GameEngine(canvas);
 
-engine.init();
+await game.init();
 
-function animate(){
+function loop() {
 
-    requestAnimationFrame(animate);
+    requestAnimationFrame(loop);
 
-    engine.render();
+    game.update();
+
+    game.render();
 
 }
 
-animate();
+loop();

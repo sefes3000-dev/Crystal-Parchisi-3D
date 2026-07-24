@@ -1,0 +1,27 @@
+export const GameState = Object.freeze({
+
+    BOOT: "BOOT",
+
+    LOADING: "LOADING",
+
+    MAIN_MENU: "MAIN_MENU",
+
+    START_GAME: "START_GAME",
+
+    WAITING_ROLL: "WAITING_ROLL",
+
+    ROLLING_DICE: "ROLLING_DICE",
+
+    CHOOSE_PAWN: "CHOOSE_PAWN",
+
+    MOVE_PAWN: "MOVE_PAWN",
+
+    CAPTURE: "CAPTURE",
+
+    BONUS_MOVE: "BONUS_MOVE",
+
+    END_TURN: "END_TURN",
+
+    GAME_OVER: "GAME_OVER"
+
+});

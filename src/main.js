@@ -1,30 +1,31 @@
+import "./styles/main.css";
 
-// ============================================
-// Crystal Parchisi 3D
-// Main Entry Point
-// Version: 0.1.0
-// ============================================
+import ThreeManager from "./graphics/ThreeManager";
 
-import './styles/main.css';
+const app=document.getElementById("app");
 
-console.log("==================================");
-console.log(" Crystal Parchisi 3D ");
-console.log(" Version 0.1.0 ");
-console.log(" Engine Starting...");
-console.log("==================================");
+app.innerHTML=`
 
-const app = document.getElementById("app");
-
-if (!app) {
-    throw new Error("App container not found.");
-}
-
-app.innerHTML = `
 <div id="game-container">
 
-    <canvas id="gameCanvas"></canvas>
+<canvas id="gameCanvas"></canvas>
 
 </div>
+
 `;
 
-console.log("Game container created successfully.");
+const canvas=document.getElementById("gameCanvas");
+
+const engine=new ThreeManager(canvas);
+
+engine.init();
+
+function animate(){
+
+    requestAnimationFrame(animate);
+
+    engine.render();
+
+}
+
+animate();

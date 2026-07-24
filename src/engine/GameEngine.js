@@ -24,6 +24,10 @@ export default class GameEngine {
 
         this.changeState(GameState.LOADING);
 
+        // تحميل الموارد
+        await this.core.assets.load();
+
+        // تشغيل محرك الرسوميات
         this.graphics.init();
 
         this.changeState(GameState.MAIN_MENU);

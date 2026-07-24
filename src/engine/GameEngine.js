@@ -11,15 +11,16 @@ export default class GameEngine {
 
         this.core = new Core();
 
-        this.graphics = new ThreeManager(canvas);
-
         this.physics = new PhysicsManager();
+
+        this.graphics = new ThreeManager(
+            canvas,
+            this.physics
+        );
 
         this.state = GameState.BOOT;
 
         this.started = false;
-
-        this.version = "0.1.0";
 
         this.lastTime = performance.now();
 
@@ -39,8 +40,6 @@ export default class GameEngine {
 
         this.started = true;
 
-        console.log("Crystal Engine Ready");
-
     }
 
     update() {
@@ -54,6 +53,8 @@ export default class GameEngine {
         this.lastTime = now;
 
         this.physics.update(delta);
+
+        this.graphics.update(delta);
 
     }
 
@@ -71,7 +72,10 @@ export default class GameEngine {
 
         this.state = state;
 
-        this.core.events.emit("stateChanged", state);
+        this.core.events.emit(
+            "stateChanged",
+            state
+        );
 
     }
 

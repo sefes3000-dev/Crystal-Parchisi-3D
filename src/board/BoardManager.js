@@ -1,11 +1,14 @@
 import * as THREE from "three";
 import BoardData from "./BoardData.js";
+import ModelLoader from "../graphics/ModelLoader.js";
 
 export default class BoardManager {
 
     constructor(scene) {
 
         this.scene = scene;
+
+        this.loader = new ModelLoader();
 
         this.board = null;
 
@@ -17,7 +20,7 @@ export default class BoardManager {
 
         console.log("Initializing Board...");
 
-        this.createBoard();
+        await this.loadBoard();
 
         this.createTiles();
 
@@ -25,12 +28,34 @@ export default class BoardManager {
 
     }
 
-    createBoard() {
+    async loadBoard() {
+
+        try {
+
+            this.board = await this.loader.load("/models/board.glb");
+
+            this.scene.add(this.board);
+
+            console.log("Board Model Loaded");
+
+        } catch (e) {
+
+            console.warn("board.glb not found.");
+
+            this.createFallbackBoard();
+
+        }
+
+    }
+
+    createFallbackBoard() {
 
         const geometry = new THREE.BoxGeometry(
 
             10,
+
             0.5,
+
             10
 
         );
@@ -80,12 +105,6 @@ export default class BoardManager {
     getTile(index) {
 
         return this.tiles[index];
-
-    }
-
-    getBoard() {
-
-        return this.board;
 
     }
 

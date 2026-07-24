@@ -1,4 +1,5 @@
 import * as THREE from "three";
+import CameraManager from "./CameraManager.js";
 
 export default class ThreeManager {
 
@@ -9,6 +10,8 @@ export default class ThreeManager {
         this.scene = null;
         this.camera = null;
         this.renderer = null;
+
+        this.cameraManager = null;
 
         this.clock = new THREE.Clock();
 
@@ -23,6 +26,10 @@ export default class ThreeManager {
         this.createRenderer();
 
         this.createLights();
+
+        this.cameraManager = new CameraManager(this.camera);
+
+        this.cameraManager.init();
 
         this.resize();
 
@@ -41,89 +48,69 @@ export default class ThreeManager {
     createCamera() {
 
         this.camera = new THREE.PerspectiveCamera(
-
             45,
-
             window.innerWidth / window.innerHeight,
-
             0.1,
-
             1000
-
         );
-
-        this.camera.position.set(0,12,12);
-
-        this.camera.lookAt(0,0,0);
 
     }
 
     createRenderer() {
 
         this.renderer = new THREE.WebGLRenderer({
-
-            canvas:this.canvas,
-
-            antialias:true,
-
-            alpha:false
-
+            canvas: this.canvas,
+            antialias: true
         });
 
         this.renderer.setPixelRatio(window.devicePixelRatio);
 
         this.renderer.setSize(
-
             window.innerWidth,
-
             window.innerHeight
-
         );
 
-        this.renderer.shadowMap.enabled=true;
+        this.renderer.shadowMap.enabled = true;
 
     }
 
-    createLights(){
+    createLights() {
 
-        const ambient=new THREE.AmbientLight(0xffffff,1);
+        const ambient = new THREE.AmbientLight(0xffffff, 1);
 
         this.scene.add(ambient);
 
-        const dir=new THREE.DirectionalLight(0xffffff,2);
+        const light = new THREE.DirectionalLight(0xffffff, 2);
 
-        dir.position.set(8,15,10);
+        light.position.set(8, 15, 10);
 
-        dir.castShadow=true;
+        light.castShadow = true;
 
-        this.scene.add(dir);
+        this.scene.add(light);
 
     }
 
-    resize(){
+    resize() {
 
-        this.camera.aspect=window.innerWidth/window.innerHeight;
+        this.camera.aspect =
+            window.innerWidth / window.innerHeight;
 
         this.camera.updateProjectionMatrix();
 
         this.renderer.setSize(
-
             window.innerWidth,
-
             window.innerHeight
-
         );
 
     }
 
-    render(){
+    render() {
+
+        this.cameraManager.update();
 
         this.renderer.render(
-
             this.scene,
-
             this.camera
-
         );
 
     }

@@ -1,92 +1,100 @@
 import * as THREE from "three";
-import ModelLoader from "../graphics/ModelLoader.js";
-import DicePhysics from "./DicePhysics.js";
-import DiceAnimator from "./DiceAnimator.js";
-import DiceValueReader from "./DiceValueReader.js";
-import DiceConfig from "./DiceConfig.js";
+import * as CANNON from "cannon-es";
 
 export default class DiceManager {
 
-    constructor(scene, physics) {
+    constructor(scene, physics, materials) {
 
         this.scene = scene;
         this.physics = physics;
+        this.materials = materials;
 
-        this.loader = new ModelLoader();
+        this.mesh = null;
+        this.body = null;
 
-        this.physicsSystem = null;
-        this.animator = new DiceAnimator();
-
-        this.meshes = [];
-        this.bodies = [];
-
-        this.values = [1, 1];
+        this.size = 0.8;
 
         this.isRolling = false;
+        this.currentValue = 1;
 
     }
 
     async init() {
 
-        this.physicsSystem = new DicePhysics(this.physics.world);
-
-        for (let i = 0; i < DiceConfig.COUNT; i++) {
-
-            await this.createDice(i);
-
-        }
-
-        console.log("Dice Manager Ready");
+        this.createDice();
 
     }
 
-    async createDice(index) {
+    createDice() {
 
-        let mesh;
+        const geometry = new THREE.BoxGeometry(
 
-        try {
+            this.size,
+            this.size,
+            this.size
 
-            mesh = await this.loader.load("/models/dice.glb");
+        );
 
-        } catch {
+        const material = this.materials.get("glass");
 
-            mesh = new THREE.Mesh(
+        this.mesh = new THREE.Mesh(
 
-                new THREE.BoxGeometry(
-                    DiceConfig.SIZE,
-                    DiceConfig.SIZE,
-                    DiceConfig.SIZE
-                ),
+            geometry,
 
-                new THREE.MeshStandardMaterial({
-                    color: 0xffffff
-                })
+            material
 
-            );
+        );
 
-        }
+        this.mesh.castShadow = true;
+        this.mesh.receiveShadow = true;
 
-        mesh.castShadow = true;
+        this.mesh.position.set(
 
-        mesh.position.set(
-
-            index * 1.5 - 0.75,
-
-            DiceConfig.START_HEIGHT,
-
+            0,
+            3,
             0
 
         );
 
-        this.scene.add(mesh);
+        this.scene.add(this.mesh);
 
-        const body = this.physicsSystem.createBody(mesh.position);
+        const shape = new CANNON.Box(
 
-        this.animator.add(mesh, body);
+            new CANNON.Vec3(
 
-        this.meshes.push(mesh);
+                this.size / 2,
 
-        this.bodies.push(body);
+                this.size / 2,
+
+                this.size / 2
+
+            )
+
+        );
+
+        this.body = new CANNON.Body({
+
+            mass: 1,
+
+            shape,
+
+            material: this.physics.materials.get("default")
+
+        });
+
+        this.body.position.set(
+
+            0,
+            3,
+            0
+
+        );
+
+        this.physics.addBody(
+
+            this.body
+
+        );
 
     }
 
@@ -96,49 +104,146 @@ export default class DiceManager {
 
         this.isRolling = true;
 
-        this.bodies.forEach(body => {
+        this.body.velocity.set(
 
-            this.physicsSystem.throw(body);
+            (Math.random() - 0.5) * 8,
 
-        });
+            8,
+
+            (Math.random() - 0.5) * 8
+
+        );
+
+        this.body.angularVelocity.set(
+
+            Math.random() * 20,
+
+            Math.random() * 20,
+
+            Math.random() * 20
+
+        );
 
     }
 
     update() {
 
-        this.animator.update();
+        if (!this.mesh || !this.body) return;
 
-        if (!this.isRolling) return;
+        this.mesh.position.copy(
 
-        let sleeping = true;
+            this.body.position
 
-        this.bodies.forEach(body => {
+        );
 
-            if (body.velocity.length() > 0.1) {
+        this.mesh.quaternion.copy(
 
-                sleeping = false;
+            this.body.quaternion
 
-            }
+        );
 
-        });
+        if (
 
-        if (sleeping) {
+            this.isRolling &&
 
-            this.values = this.meshes.map(mesh =>
-                DiceValueReader.getValue(mesh)
-            );
+            this.body.velocity.length() < 0.1 &&
 
-            console.log("Dice Result:", this.values);
+            this.body.angularVelocity.length() < 0.1
+
+        ) {
 
             this.isRolling = false;
+
+            this.currentValue = this.readValue();
+
+            console.log(
+
+                "Dice:",
+
+                this.currentValue
+
+            );
 
         }
 
     }
 
-    getValues() {
+    readValue() {
 
-        return this.values;
+        const up = new THREE.Vector3(0,1,0);
+
+        const faces = [
+
+            new THREE.Vector3(0,1,0),
+            new THREE.Vector3(0,-1,0),
+            new THREE.Vector3(1,0,0),
+            new THREE.Vector3(-1,0,0),
+            new THREE.Vector3(0,0,1),
+            new THREE.Vector3(0,0,-1)
+
+        ];
+
+        let best = 0;
+        let max = -1;
+
+        for(let i=0;i<faces.length;i++){
+
+            const dir = faces[i].clone();
+
+            dir.applyQuaternion(
+
+                this.mesh.quaternion
+
+            );
+
+            const dot = dir.dot(up);
+
+            if(dot > max){
+
+                max = dot;
+
+                best = i;
+
+            }
+
+        }
+
+        return [
+
+            1,
+            6,
+            3,
+            4,
+            2,
+            5
+
+        ][best];
+
+    }
+
+    getValue() {
+
+        return this.currentValue;
+
+    }
+
+    dispose() {
+
+        if(this.mesh){
+
+            this.scene.remove(this.mesh);
+
+        }
+
+        if(this.body){
+
+            this.physics.removeBody(
+
+                this.body
+
+            );
+
+        }
 
     }
 

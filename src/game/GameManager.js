@@ -1,187 +1,214 @@
-import BoardData from "../board/BoardData.js";
+import ThreeManager from "../graphics/ThreeManager.js";
+import { GameState } from "./GameState.js";
+import Core from "../core/Core.js";
+import PhysicsManager from "../physics/PhysicsManager.js";
+import EngineLoop from "./EngineLoop.js";
+import Time from "./Time.js";
 
-export default class GameManager {
+import GameManager from "../game/GameManager.js";
+import PieceManager from "../pieces/PieceManager.js";
 
-    constructor(pieceManager, diceManager) {
+export default class GameEngine {
 
-        this.pieceManager = pieceManager;
-        this.diceManager = diceManager;
+    constructor(canvas) {
 
-        this.players = BoardData.PLAYERS;
+        this.canvas = canvas;
 
-        this.currentPlayer = 0;
+        this.state = GameState.BOOT;
 
-        this.waitingDice = false;
+        this.started = false;
 
-        this.gameStarted = false;
+        this.destroyed = false;
 
-        this.moveQueue = [];
+        this.core = new Core();
 
-        this.currentMovingPiece = null;
+        this.time = new Time();
 
-        this.extraTurn = false;
+        this.physics = new PhysicsManager();
 
-    }
-
-    init() {
-
-        console.log("Game Manager Ready");
-
-        this.gameStarted = true;
-
-    }
-
-    getCurrentPlayer() {
-
-        return this.players[this.currentPlayer];
-
-    }
-
-    rollDice() {
-
-        if (this.waitingDice) return;
-
-        if (this.moveQueue.length > 0) return;
-
-        this.waitingDice = true;
-
-        this.diceManager.roll();
-
-    }
-
-    update() {
-
-        if (!this.gameStarted) return;
-
-        if (this.waitingDice) {
-
-            if (this.diceManager.isRolling) return;
-
-            this.waitingDice = false;
-
-            const value = this.diceManager.getValue();
-
-            console.log(this.getCurrentPlayer(), "rolled", value);
-
-            this.prepareMove(value);
-
-        }
-
-        this.updateMoveQueue();
-
-    }
-
-    prepareMove(steps) {
-
-        const pieces = this.pieceManager.getPieces(
-            this.getCurrentPlayer()
+        this.graphics = new ThreeManager(
+            canvas,
+            this.physics
         );
 
-        const piece = pieces.find(p => !p.finished);
+        this.loop = new EngineLoop(this);
 
-        if (!piece) {
+        this.game = null;
 
-            this.nextTurn();
+        this.pieceManager = null;
 
-            return;
+        this.onResize = this.onResize.bind(this);
+
+    }
+
+    async init() {
+
+        try {
+
+            this.changeState(GameState.LOADING);
+
+            await this.core.assets.load();
+
+            this.physics.init();
+
+            await this.graphics.init();
+
+            this.pieceManager =
+                this.graphics.pieceManager;
+
+            this.game = new GameManager(
+
+                this.pieceManager,
+
+                this.graphics.diceManager
+
+            );
+
+            this.game.init();
+
+            window.addEventListener(
+
+                "resize",
+
+                this.onResize
+
+            );
+
+            this.changeState(
+
+                GameState.MAIN_MENU
+
+            );
+
+            this.started = true;
 
         }
 
-        this.currentMovingPiece = piece;
+        catch(error){
 
-        this.extraTurn = (steps === 6);
+            console.error(
 
-        if (piece.pathIndex === -1) {
+                "GameEngine Init Error",
 
-            if (steps !== 6) {
+                error
 
-                this.nextTurn();
-
-                return;
-
-            }
-
-            piece.pathIndex = BoardData.START_INDEX[piece.player];
-
-            this.moveQueue.push(piece.pathIndex);
-
-            steps--;
-
-        }
-
-        for (let i = 0; i < steps; i++) {
-
-            piece.pathIndex++;
-
-            if (piece.pathIndex >= BoardData.MAIN_PATH_LENGTH) {
-
-                piece.finished = true;
-
-                break;
-
-            }
-
-            this.moveQueue.push(piece.pathIndex);
+            );
 
         }
 
     }
 
-    updateMoveQueue() {
+    start(){
 
-        if (!this.currentMovingPiece) return;
+        if(!this.started) return;
 
-        if (this.pieceManager.isAnimating()) return;
+        this.loop.start();
 
-        if (this.moveQueue.length === 0) {
+    }
 
-            if (this.currentMovingPiece.finished) {
+    stop(){
 
-                console.log(
-                    this.currentMovingPiece.player,
-                    "finished a pawn"
-                );
+        this.loop.stop();
 
-            }
+    }
 
-            this.currentMovingPiece = null;
+    pause(){
 
-            if (!this.extraTurn) {
+        this.loop.pause();
 
-                this.nextTurn();
+    }
 
-            }
+    resume(){
 
-            return;
+        this.loop.resume();
+
+    }
+
+    beforeUpdate(delta){
+
+    }
+
+    update(delta){
+
+        if(!this.started) return;
+
+        this.time.update(delta);
+
+        const dt = this.time.getDelta();
+
+        this.physics.update(dt);
+
+        this.graphics.update(dt);
+
+        if(this.game){
+
+            this.game.update(dt);
 
         }
 
-        const nextTile = this.moveQueue.shift();
+    }
 
-        this.pieceManager.movePiece(
+    afterUpdate(delta){
 
-            this.currentMovingPiece,
+    }
 
-            nextTile
+    render(){
+
+        if(!this.started) return;
+
+        this.graphics.render();
+
+    }
+
+    changeState(state){
+
+        if(this.state===state) return;
+
+        this.state=state;
+
+        this.core.events.emit(
+
+            "stateChanged",
+
+            state
 
         );
 
     }
 
-    nextTurn() {
+    onResize(){
 
-        this.currentPlayer++;
+        this.graphics?.resize();
 
-        if (this.currentPlayer >= this.players.length) {
+    }
 
-            this.currentPlayer = 0;
+    dispose(){
 
-        }
+        if(this.destroyed) return;
 
-        console.log(
-            "Current Player:",
-            this.getCurrentPlayer()
+        this.destroyed=true;
+
+        this.loop.stop();
+
+        window.removeEventListener(
+
+            "resize",
+
+            this.onResize
+
         );
+
+        this.graphics?.dispose();
+
+        this.physics?.dispose();
+
+        this.started=false;
+
+    }
+
+    getFPS(){
+
+        return this.loop.getFPS();
 
     }
 

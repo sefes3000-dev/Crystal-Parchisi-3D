@@ -18,6 +18,12 @@ export default class BoardManager {
 
         this.showDebugTiles = false;
 
+        this.tileSize = 0.55;
+
+        this.tileHeight = 0.26;
+
+        this.occupiedTiles = new Map();
+
     }
 
     async init() {
@@ -45,7 +51,6 @@ export default class BoardManager {
                 if (child.isMesh) {
 
                     child.castShadow = true;
-
                     child.receiveShadow = true;
 
                 }
@@ -70,7 +75,15 @@ export default class BoardManager {
 
     createFallbackBoard() {
 
-        const geometry = new THREE.BoxGeometry(10,0.5,10);
+        const geometry = new THREE.BoxGeometry(
+
+            10,
+
+            0.5,
+
+            10
+
+        );
 
         const material = new THREE.MeshStandardMaterial({
 
@@ -104,122 +117,192 @@ export default class BoardManager {
 
         this.tileGroup.clear();
 
+        // إذا كانت الإحداثيات موجودة في BoardData استخدمها
+        if (BoardData.PATH && BoardData.PATH.length > 0) {
+
+            for (let i = 0; i < BoardData.PATH.length; i++) {
+
+                const position = BoardData.PATH[i].clone();
+
+                position.y = this.tileHeight;
+
+                const tile = {
+
+                    id: i,
+
+                    position,
+
+                    occupied: false,
+
+                    piece: null,
+
+                    safe: BoardData.SAFE_TILES.includes(i)
+
+                };
+
+                this.tiles.push(tile);
+
+                this.createDebugTile(tile);
+
+            }
+
+            return;
+
+        }
+
+        // مؤقتاً حتى ننتهي من BoardData
         const radius = 4.25;
 
-        for(let i=0;i<BoardData.MAIN_PATH_LENGTH;i++){
+        for (let i = 0; i < BoardData.MAIN_PATH_LENGTH; i++) {
 
             const angle =
 
-                (i / BoardData.MAIN_PATH_LENGTH)
+                (i / BoardData.MAIN_PATH_LENGTH) *
 
-                * Math.PI * 2;
+                Math.PI * 2;
 
             const position = new THREE.Vector3(
 
                 Math.cos(angle) * radius,
 
-                0.26,
+                this.tileHeight,
 
                 Math.sin(angle) * radius
 
             );
 
-            const tile={
+            const tile = {
 
-                id:i,
+                id: i,
 
-                occupied:false,
+                position,
 
-                piece:null,
+                occupied: false,
 
-                position
+                piece: null,
+
+                safe: BoardData.SAFE_TILES.includes(i)
 
             };
 
             this.tiles.push(tile);
 
-            if(this.showDebugTiles){
-
-                const mesh=new THREE.Mesh(
-
-                    new THREE.BoxGeometry(.18,.05,.18),
-
-                    new THREE.MeshBasicMaterial({
-
-                        color:0x00ff00
-
-                    })
-
-                );
-
-                mesh.position.copy(position);
-
-                this.tileGroup.add(mesh);
-
-            }
+            this.createDebugTile(tile);
 
         }
 
     }
 
-    getTile(index){
+    createDebugTile(tile) {
 
-        return this.tiles[index] ?? null;
+        if (!this.showDebugTiles) return;
+
+        const mesh = new THREE.Mesh(
+
+            new THREE.BoxGeometry(
+
+                this.tileSize,
+
+                0.05,
+
+                this.tileSize
+
+            ),
+
+            new THREE.MeshBasicMaterial({
+
+                color: tile.safe
+
+                    ? 0xffff00
+
+                    : 0x00ff00
+
+            })
+
+        );
+
+        mesh.position.copy(tile.position);
+
+        this.tileGroup.add(mesh);
 
     }
 
-    getTilePosition(index){
+    getTile(index) {
 
-        const tile=this.getTile(index);
+        if (index < 0) return null;
+
+        if (index >= this.tiles.length) return null;
+
+        return this.tiles[index];
+
+    }
+
+    getTilePosition(index) {
+
+        const tile = this.getTile(index);
 
         return tile ? tile.position.clone() : null;
 
     }
 
-    occupy(index,piece){
+    isSafeTile(index) {
 
-        const tile=this.getTile(index);
+        return BoardData.SAFE_TILES.includes(index);
 
-        if(!tile) return false;
+    }
 
-        tile.occupied=true;
+    isOccupied(index) {
 
-        tile.piece=piece;
+        return this.occupiedTiles.has(index);
+
+    }
+
+    getPiece(index) {
+
+        return this.occupiedTiles.get(index) ?? null;
+
+    }
+
+    occupy(index, piece) {
+
+        const tile = this.getTile(index);
+
+        if (!tile) return false;
+
+        tile.occupied = true;
+
+        tile.piece = piece;
+
+        this.occupiedTiles.set(index, piece);
 
         return true;
 
     }
 
-    free(index){
+    free(index) {
 
-        const tile=this.getTile(index);
+        const tile = this.getTile(index);
 
-        if(!tile) return;
+        if (!tile) return;
 
-        tile.occupied=false;
+        tile.occupied = false;
 
-        tile.piece=null;
+        tile.piece = null;
+
+        this.occupiedTiles.delete(index);
 
     }
 
-    clear(){
+    update() {
 
-        this.tiles=[];
+    }
+
+    clear() {
+
+        this.tiles = [];
+
+        this.occupiedTiles.clear();
 
         this.tileGroup.clear();
 
     }
-
-    dispose(){
-
-        this.clear();
-
-        if(this.board){
-
-            this.scene.remove(this.board);
-
-        }
-
-    }
-
-}

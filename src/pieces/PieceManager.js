@@ -1,5 +1,6 @@
 import * as THREE from "three";
 import BoardData from "../board/BoardData.js";
+import PieceAnimator from "./PieceAnimator.js";
 
 export default class PieceManager {
 
@@ -8,6 +9,8 @@ export default class PieceManager {
         this.scene = scene;
         this.materials = materials;
         this.boardManager = boardManager;
+
+        this.animator = new PieceAnimator();
 
         this.pieces = [];
 
@@ -132,6 +135,8 @@ export default class PieceManager {
                 p[1]
             );
 
+            piece.mesh.rotation.set(0, 0, 0);
+
             piece.pathIndex = -1;
 
             piece.finished = false;
@@ -144,13 +149,17 @@ export default class PieceManager {
 
         const tile = this.boardManager.getTile(pathIndex);
 
-        if (!tile) return;
+        if (!tile) return false;
 
         piece.pathIndex = pathIndex;
 
-        piece.mesh.position.copy(tile.position);
+        const target = tile.position.clone();
 
-        piece.mesh.position.y = 0.55;
+        target.y = 0.55;
+
+        this.animator.move(piece, target);
+
+        return true;
 
     }
 
@@ -164,7 +173,31 @@ export default class PieceManager {
 
     }
 
+    getPiece(player, index) {
+
+        return this.pieces.find(
+
+            p => p.player === player && p.index === index
+
+        );
+
+    }
+
+    getAllPieces() {
+
+        return this.pieces;
+
+    }
+
+    isAnimating() {
+
+        return this.animator.isMoving();
+
+    }
+
     update(delta) {
+
+        this.animator.update(delta);
 
         this.pieces.forEach(piece => {
 
@@ -175,6 +208,8 @@ export default class PieceManager {
     }
 
     dispose() {
+
+        this.animator = null;
 
         this.pieces.forEach(piece => {
 

@@ -11,11 +11,15 @@ export default class GameManager {
 
         this.currentPlayer = 0;
 
-        this.selectedPiece = null;
-
         this.waitingDice = false;
 
         this.gameStarted = false;
+
+        this.moveQueue = [];
+
+        this.currentMovingPiece = null;
+
+        this.extraTurn = false;
 
     }
 
@@ -37,6 +41,8 @@ export default class GameManager {
 
         if (this.waitingDice) return;
 
+        if (this.moveQueue.length > 0) return;
+
         this.waitingDice = true;
 
         this.diceManager.roll();
@@ -45,45 +51,33 @@ export default class GameManager {
 
     update() {
 
-        if (!this.waitingDice) return;
+        if (!this.gameStarted) return;
 
-        if (this.diceManager.isRolling) return;
+        if (this.waitingDice) {
 
-        this.waitingDice = false;
+            if (this.diceManager.isRolling) return;
 
-        const value = this.diceManager.getValue();
+            this.waitingDice = false;
 
-        console.log(
+            const value = this.diceManager.getValue();
 
-            this.getCurrentPlayer(),
+            console.log(this.getCurrentPlayer(), "rolled", value);
 
-            "rolled",
+            this.prepareMove(value);
 
-            value
+        }
 
-        );
-
-        this.autoMove(value);
+        this.updateMoveQueue();
 
     }
 
-    autoMove(steps) {
+    prepareMove(steps) {
 
-        const pieces =
+        const pieces = this.pieceManager.getPieces(
+            this.getCurrentPlayer()
+        );
 
-            this.pieceManager.getPieces(
-
-                this.getCurrentPlayer()
-
-            );
-
-        let piece =
-
-            pieces.find(
-
-                p => !p.finished
-
-            );
+        const piece = pieces.find(p => !p.finished);
 
         if (!piece) {
 
@@ -92,6 +86,10 @@ export default class GameManager {
             return;
 
         }
+
+        this.currentMovingPiece = piece;
+
+        this.extraTurn = (steps === 6);
 
         if (piece.pathIndex === -1) {
 
@@ -103,59 +101,70 @@ export default class GameManager {
 
             }
 
-            piece.pathIndex =
+            piece.pathIndex = BoardData.START_INDEX[piece.player];
 
-                BoardData.START_INDEX[
+            this.moveQueue.push(piece.pathIndex);
 
-                    piece.player
-
-                ];
+            steps--;
 
         }
 
-        else {
+        for (let i = 0; i < steps; i++) {
 
-            piece.pathIndex += steps;
+            piece.pathIndex++;
 
-        }
+            if (piece.pathIndex >= BoardData.MAIN_PATH_LENGTH) {
 
-        if (
+                piece.finished = true;
 
-            piece.pathIndex >=
+                break;
 
-            BoardData.MAIN_PATH_LENGTH
+            }
 
-        ) {
-
-            piece.finished = true;
-
-            console.log(
-
-                piece.player,
-
-                "piece finished"
-
-            );
+            this.moveQueue.push(piece.pathIndex);
 
         }
 
-        else {
+    }
 
-            this.pieceManager.movePiece(
+    updateMoveQueue() {
 
-                piece,
+        if (!this.currentMovingPiece) return;
 
-                piece.pathIndex
+        if (this.pieceManager.isAnimating()) return;
 
-            );
+        if (this.moveQueue.length === 0) {
+
+            if (this.currentMovingPiece.finished) {
+
+                console.log(
+                    this.currentMovingPiece.player,
+                    "finished a pawn"
+                );
+
+            }
+
+            this.currentMovingPiece = null;
+
+            if (!this.extraTurn) {
+
+                this.nextTurn();
+
+            }
+
+            return;
 
         }
 
-        if (steps !== 6) {
+        const nextTile = this.moveQueue.shift();
 
-            this.nextTurn();
+        this.pieceManager.movePiece(
 
-        }
+            this.currentMovingPiece,
+
+            nextTile
+
+        );
 
     }
 
@@ -163,24 +172,15 @@ export default class GameManager {
 
         this.currentPlayer++;
 
-        if (
-
-            this.currentPlayer >=
-
-            this.players.length
-
-        ) {
+        if (this.currentPlayer >= this.players.length) {
 
             this.currentPlayer = 0;
 
         }
 
         console.log(
-
             "Current Player:",
-
             this.getCurrentPlayer()
-
         );
 
     }

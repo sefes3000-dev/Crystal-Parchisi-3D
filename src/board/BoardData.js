@@ -1,66 +1,57 @@
-/**
- * ============================================================
- * Crystal Parchisi 3D
- * Board Data
- * ============================================================
- */
+import * as THREE from "three";
 
-const BoardData = {
+const PATH = [];
 
-    MAIN_PATH_LENGTH: 68,
+const STEP = 0.66;
 
-    HOME_PATH_LENGTH: 7,
+function add(x, z) {
 
-    PAWNS_PER_PLAYER: 4,
+    PATH.push(
 
-    PLAYERS: [
-        "RED",
-        "YELLOW",
-        "GREEN",
-        "BLUE"
-    ],
+        new THREE.Vector3(
 
-    START_INDEX: {
-        RED: 0,
-        YELLOW: 17,
-        GREEN: 34,
-        BLUE: 51
-    },
+            x * STEP,
 
-    HOME_ENTRY: {
-        RED: 67,
-        YELLOW: 16,
-        GREEN: 33,
-        BLUE: 50
-    },
+            0,
 
-    SAFE_TILES: [
-        0,8,13,21,26,34,39,47
-    ],
+            z * STEP
 
-    SPAWN: {
-        RED: 0,
-        YELLOW: 17,
-        GREEN: 34,
-        BLUE: 51
-    },
+        )
 
-    COLORS: {
-        RED: 0xff4444,
-        YELLOW: 0xffdd33,
-        GREEN: 0x33cc55,
-        BLUE: 0x3399ff
-    },
+    );
 
-    HOME_POSITIONS: {
-        RED: [],
-        YELLOW: [],
-        GREEN: [],
-        BLUE: []
-    },
+}
 
-    PATH: []
+/*==========================
+        RED START
+==========================*/
 
-};
+add(-5,1);
+add(-4,1);
+add(-3,1);
+add(-2,1);
+add(-1,1);
 
-export default BoardData;
+add(-1,2);
+add(-1,3);
+
+add(-2,3);
+add(-3,3);
+
+add(-3,4);
+add(-3,5);
+
+add(-2,5);
+add(-1,5);
+
+add(0,5);
+
+add(1,5);
+
+add(1,4);
+
+add(1,3);
+
+/*==========================
+      نحو الأصفر
+==========================*/

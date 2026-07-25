@@ -1,7 +1,11 @@
 import * as THREE from "three";
+
 import CameraManager from "./CameraManager.js";
-import BoardManager from "../board/BoardManager.js";
 import MaterialManager from "./MaterialManager.js";
+import LightingManager from "./LightingManager.js";
+import PostProcessing from "./PostProcessing.js";
+
+import BoardManager from "../board/BoardManager.js";
 import DiceManager from "../dice/DiceManager.js";
 
 export default class ThreeManager {
@@ -9,46 +13,86 @@ export default class ThreeManager {
     constructor(canvas, physics) {
 
         this.canvas = canvas;
-
         this.physics = physics;
 
         this.scene = null;
         this.camera = null;
         this.renderer = null;
 
+        this.materials = null;
         this.cameraManager = null;
+        this.lighting = null;
+        this.postProcessing = null;
+
         this.boardManager = null;
         this.diceManager = null;
 
-        this.materials = new MaterialManager();
+        this.clock = new THREE.Clock();
+
+        this.mixers = [];
+
+        this.onResize = this.onResize.bind(this);
 
     }
 
     async init() {
 
         this.createScene();
-        this.createCamera();
-        this.createRenderer();
-        this.createLights();
 
-        this.cameraManager = new CameraManager(this.camera);
+        this.createCamera();
+
+        this.createRenderer();
+
+        this.materials = new MaterialManager();
+
+        this.cameraManager = new CameraManager(
+            this.camera
+        );
+
         this.cameraManager.init();
 
-        this.boardManager = new BoardManager(this.scene);
+        this.lighting = new LightingManager(
+            this.scene,
+            this.renderer
+        );
+
+        this.lighting.init();
+
+        this.postProcessing = new PostProcessing(
+            this.renderer,
+            this.scene,
+            this.camera
+        );
+
+        this.postProcessing.init();
+
+        this.boardManager = new BoardManager(
+            this.scene,
+            this.materials
+        );
+
         await this.boardManager.init();
 
         this.diceManager = new DiceManager(
+
             this.scene,
-            this.physics
+
+            this.physics,
+
+            this.materials
+
         );
 
         await this.diceManager.init();
 
-        this.resize();
+        this.onResize();
 
         window.addEventListener(
+
             "resize",
-            () => this.resize()
+
+            this.onResize
+
         );
 
     }
@@ -57,17 +101,36 @@ export default class ThreeManager {
 
         this.scene = new THREE.Scene();
 
-        this.scene.background = new THREE.Color(0x202020);
+        this.scene.background =
+
+            new THREE.Color(0x1b1b1b);
+
+        this.scene.fog = new THREE.Fog(
+
+            0x1b1b1b,
+
+            20,
+
+            45
+
+        );
 
     }
 
     createCamera() {
 
         this.camera = new THREE.PerspectiveCamera(
+
             45,
-            window.innerWidth / window.innerHeight,
+
+            window.innerWidth /
+
+            window.innerHeight,
+
             0.1,
-            1000
+
+            100
+
         );
 
     }
@@ -78,52 +141,75 @@ export default class ThreeManager {
 
             canvas: this.canvas,
 
-            antialias: true
+            antialias: true,
+
+            alpha: false
 
         });
 
-        this.renderer.setPixelRatio(window.devicePixelRatio);
+        this.renderer.setPixelRatio(
 
-        this.renderer.setSize(
-            window.innerWidth,
-            window.innerHeight
+            Math.min(
+
+                window.devicePixelRatio,
+
+                2
+
+            )
+
         );
 
-        this.renderer.shadowMap.enabled = true;
-
-    }
-
-    createLights() {
-
-        const ambient = new THREE.AmbientLight(0xffffff, 1);
-
-        this.scene.add(ambient);
-
-        const sun = new THREE.DirectionalLight(0xffffff, 2);
-
-        sun.position.set(10, 20, 10);
-
-        sun.castShadow = true;
-
-        this.scene.add(sun);
-
-    }
-
-    resize() {
-
-        this.camera.aspect =
-            window.innerWidth / window.innerHeight;
-
-        this.camera.updateProjectionMatrix();
-
         this.renderer.setSize(
+
             window.innerWidth,
+
             window.innerHeight
+
         );
 
     }
 
-    update(delta) {
+    add(object) {
+
+        this.scene.add(object);
+
+    }
+
+    remove(object) {
+
+        this.scene.remove(object);
+
+    }
+
+    addMixer(mixer) {
+
+        this.mixers.push(mixer);
+
+    }
+
+    removeMixer(mixer) {
+
+        this.mixers = this.mixers.filter(
+
+            m => m !== mixer
+
+        );
+
+    }
+
+    update(delta = this.clock.getDelta()) {
+
+        if (this.cameraManager) {
+
+            this.cameraManager.update(delta);
+
+        }
+
+        if (this.boardManager) {
+
+            this.boardManager.update(delta);
+
+        }
 
         if (this.diceManager) {
 
@@ -131,16 +217,107 @@ export default class ThreeManager {
 
         }
 
-        this.cameraManager.update();
+        if (this.lighting) {
+
+            this.lighting.update(delta);
+
+        }
+
+        for (const mixer of this.mixers) {
+
+            mixer.update(delta);
+
+        }
 
     }
 
     render() {
 
-        this.renderer.render(
-            this.scene,
-            this.camera
+        if (this.postProcessing) {
+
+            this.postProcessing.render();
+
+        } else {
+
+            this.renderer.render(
+
+                this.scene,
+
+                this.camera
+
+            );
+
+        }
+
+    }
+
+    onResize() {
+
+        const width = window.innerWidth;
+
+        const height = window.innerHeight;
+
+        this.camera.aspect = width / height;
+
+        this.camera.updateProjectionMatrix();
+
+        this.renderer.setSize(
+
+            width,
+
+            height
+
         );
+
+        if (this.postProcessing) {
+
+            this.postProcessing.resize(
+
+                width,
+
+                height
+
+            );
+
+        }
+
+    }
+
+    dispose() {
+
+        window.removeEventListener(
+
+            "resize",
+
+            this.onResize
+
+        );
+
+        if (this.boardManager?.dispose) {
+
+            this.boardManager.dispose();
+
+        }
+
+        if (this.diceManager?.dispose) {
+
+            this.diceManager.dispose();
+
+        }
+
+        if (this.lighting?.dispose) {
+
+            this.lighting.dispose();
+
+        }
+
+        if (this.postProcessing?.dispose) {
+
+            this.postProcessing.dispose();
+
+        }
+
+        this.renderer.dispose();
 
     }
 
